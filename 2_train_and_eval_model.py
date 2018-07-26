@@ -11,6 +11,7 @@ from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 from sklearn import metrics
+from sklearn.metrics import roc_auc_score
 import os
 from matplotlib import pyplot as plt
 sys.path.append(".")
@@ -36,7 +37,10 @@ column_to_predict = "ticket_type"
 # sub_category1
 # sub_category2
 
-classifier = "NB"  # Supported algorithms # "SVM" # "NB"
+is_binary_predictor = False
+if(column_to_predict == "ticket_type"):
+    is_binary_predictor = True  
+classifier = "SVM"  # Supported algorithms # "SVM" # "NB"
 use_grid_search = False  # grid search is used to find hyperparameters. Searching for hyperparameters is time consuming
 remove_stop_words = True  # removes stop words from processed text
 stop_words_lang = 'english'  # used with 'remove_stop_words' and defines language of stop words collection
@@ -127,23 +131,25 @@ if __name__ == '__main__':
         # E.g. vect__ngram_range; here we are telling to use unigram and bigrams and choose the one which is optimal.
         
         # NB parameters
-        parameters = {
-            'vect__ngram_range': [(1, 1), (1, 2)],
-            'tfidf__use_idf': (True, False),
-            'clf__alpha': (1e-2, 1e-3)
-        }
+        if classifier == "NB":
+            parameters = {
+                'vect__ngram_range': [(1, 1), (1, 2)],
+                'tfidf__use_idf': (True, False),
+                'clf__alpha': (1e-2, 1e-3)
+            }
 
         # SVM parameters
-        # parameters = {
-        #    'vect__max_df': (0.5, 0.75, 1.0),
-        #    'vect__max_features': (None, 5000, 10000, 50000),
-        #    'vect__ngram_range': ((1, 1), (1, 2)),  # unigrams or bigrams
-        #    'tfidf__use_idf': (True, False),
-        #    'tfidf__norm': ('l1', 'l2'),
-        #    'clf__alpha': (0.00001, 0.000001),
-        #    'clf__penalty': ('l2', 'elasticnet'),
-        #    'clf__n_iter': (10, 50, 80),
-        # }
+        elif classifier == "SVM":
+            parameters = {
+                'vect__max_df': (0.5, 0.75, 1.0),
+                'vect__max_features': (None, 5000, 10000, 50000),
+                'vect__ngram_range': ((1, 1), (1, 2)),  # unigrams or bigrams
+                'tfidf__use_idf': (True, False),
+                'tfidf__norm': ('l1', 'l2'),
+                'clf__alpha': (0.00001, 0.000001),
+                'clf__penalty': ('l2', 'elasticnet'),
+                'clf__n_iter': (10, 50, 80),
+            }
 
         # Next, we create an instance of the grid search by passing the classifier, parameters
         # and n_jobs=-1 which tells to use multiple cores from user machine.
@@ -151,25 +157,30 @@ if __name__ == '__main__':
         gs_clf = gs_clf.fit(train_data, train_labels)
 
         # To see the best mean score and the params, run the following code
-        gs_clf.best_score_
-        gs_clf.best_params_
+        print('Best scores:',gs_clf.best_score_)
+        print('Best params:',gs_clf.best_params_)
 
     print("Evaluating model")
     # Score and evaluate model on test data using model without hyperparameter tuning
     predicted = text_clf.predict(test_data)
     prediction_acc = np.mean(predicted == test_labels)
+    prediction_auc = roc_auc_score(pd.to_numeric(predicted), pd.to_numeric(test_labels))
     print("Confusion matrix without GridSearch:")
     print(metrics.confusion_matrix(test_labels, predicted))
     print("Mean without GridSearch: " + str(prediction_acc))
+    print("ROC AUC without GridSearch: " + str(prediction_auc))
 
     # Score and evaluate model on test data using model WITH hyperparameter tuning
     if use_grid_search:
         predicted = gs_clf.predict(test_data)
         prediction_acc = np.mean(predicted == test_labels)
+        prediction_auc = roc_auc_score(pd.to_numeric(predicted), pd.to_numeric(test_labels))
         print("Confusion matrix with GridSearch:")
         print(metrics.confusion_matrix(test_labels, predicted))
         print("Mean with GridSearch: " + str(prediction_acc))
+        print("ROC AUC with GridSearch: " + str(prediction_auc))
 
+    
     # Ploting confusion matrix with 'seaborn' module
     # Use below line only with Jupyter Notebook
     # %matplotlib inline
