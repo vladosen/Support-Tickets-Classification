@@ -7,6 +7,7 @@ import pickle
 from nltk.stem.snowball import SnowballStemmer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.linear_model import SGDClassifier
+from lightgbm import LGBMClassifier
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
@@ -40,8 +41,8 @@ column_to_predict = "ticket_type"
 is_binary_predictor = False
 if(column_to_predict == "ticket_type"):
     is_binary_predictor = True  
-classifier = "SVM"  # Supported algorithms # "SVM" # "NB"
-use_grid_search = False  # grid search is used to find hyperparameters. Searching for hyperparameters is time consuming
+classifier = "LGB"  # Supported algorithms # "SVM" # "NB" # "LGB"
+use_grid_search = True  # grid search is used to find hyperparameters. Searching for hyperparameters is time consuming
 remove_stop_words = True  # removes stop words from processed text
 stop_words_lang = 'english'  # used with 'remove_stop_words' and defines language of stop words collection
 use_stemming = False  # word stemming using nltk
@@ -99,30 +100,39 @@ if __name__ == '__main__':
 
     # Fitting the training data into a data processing pipeline and eventually into the model itself
     if classifier == "NB":
-        print("Training NB classifier")
-        # Building a pipeline: We can write less code and do all of the above, by building a pipeline as follows:
-        # The names ‘vect’ , ‘tfidf’ and ‘clf’ are arbitrary but will be used later.
-        # We will be using the 'text_clf' going forward.
-
-        text_clf = Pipeline([
-            ('vect', count_vect),
-            ('tfidf', TfidfTransformer()),
-            ('clf', MultinomialNB(fit_prior=fit_prior))
-        ])
-        text_clf = text_clf.fit(train_data, train_labels)
-
+        txt = "Training NB classifier"
+        clf = MultinomialNB(fit_prior=fit_prior)
     elif classifier == "SVM":
-        print("Training SVM classifier")
-        # Training Support Vector Machines - SVM
-        text_clf = Pipeline([(
-            'vect', count_vect),
-            ('tfidf', TfidfTransformer()),
-            ('clf', SGDClassifier(
+        txt = "Training SVM classifier"
+        clf = SGDClassifier(
                 loss='hinge', penalty='l2', alpha=1e-3,
                 n_iter=5, random_state=42
             )
-        )])
-        text_clf = text_clf.fit(train_data, train_labels)
+    elif classifier == "LGB":
+        txt = "Training LGB classifier"
+        clf = LGBMClassifier(
+               boosting_type='gbdt',
+               objective='multiclass',
+               learning_rate=0.01,
+               colsample_bytree=0.9,
+               subsample=0.8,
+               random_state=1,
+               n_estimators=100,
+               num_leaves=31,
+               silent=False)
+        
+        
+    # Building a pipeline: We can write less code and do all of the above, by building a pipeline as follows:
+    # The names ‘vect’ , ‘tfidf’ and ‘clf’ are arbitrary but will be used later.
+    # We will be using the 'text_clf' going forward.
+    print(txt)
+    text_clf = Pipeline([
+        ('vect', count_vect),
+        ('tfidf', TfidfTransformer()),
+        ('clf', clf)
+    ])
+    text_clf = text_clf.fit(train_data, train_labels)
+
 
     if use_grid_search:
         # Grid Search
@@ -149,6 +159,16 @@ if __name__ == '__main__':
                 'clf__alpha': (0.00001, 0.000001),
                 'clf__penalty': ('l2', 'elasticnet'),
                 'clf__n_iter': (10, 50, 80),
+            }
+        # LightGBM parameters
+        elif classifier == "LGB":
+            parameters = {
+                'vect__ngram_range': ((1, 1), (1, 2)),  # unigrams or bigrams
+                'tfidf__use_idf': (True, False),
+                'clf__learning_rate':(0.01,0.02),
+                #'clf__colsample_bytree':(0.8, 0.9),
+                #'clf__subsample': (0.6,0.7,0.8),
+                #'clf__n_estimators':(50,100),
             }
 
         # Next, we create an instance of the grid search by passing the classifier, parameters
