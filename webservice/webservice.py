@@ -1,32 +1,34 @@
 import sys
 from flask import Flask, jsonify, request, make_response, abort
 import os
-import nltk
-import numpy as np
-import pandas as pd
-import sklearn
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.pipeline import Pipeline
 import time
 import logging
 import pickle
 import re
+
+IS_LOCAL = False
+IS_DEBUG = False
+
 # Use with Azure Web Apps
-os.environ['PATH'] = r'D:\home\python354x64;' + os.environ['PATH']
+if(IS_LOCAL):
+    os.environ['PATH'] = r'C:\Program_Files\Anaconda3;' + os.environ['PATH']
+else:
+    os.environ['PATH'] = r'D:\home\python354x64;' + os.environ['PATH']
 sys.path.append(".")
 sys.path.append("..")
 sys.path.append("webservice/models")
 sys.path.append("wwwroot/models")
+    
 app = Flask(__name__)
 __location__ = os.path.realpath(os.path.join(
     os.getcwd(), os.path.dirname(__file__), 'models'))
 
 # Download models
-from models.download_models import download_file, download_models
-download_models()
+if(IS_LOCAL):
+    print("Model loaded locally")
+else:
+    from models.download_models import download_file, download_models
+    download_models()
 
 # Loading models
 model_impact = pickle.load(
@@ -48,7 +50,7 @@ model_category = pickle.load(
 
 @app.errorhandler(404)
 def not_found(error):
-    return make_response(jsonify({'error': 'Not found'}), 404)
+    return make_response(jsonify({'error': 'Service not found'}), 404)
 
 
 @app.route('/')
@@ -56,12 +58,17 @@ def index():
     return """
         <html>
         <body>
-        Hello, World!<br>
-        This is a sample web service written in Python using <a href=""http://flask.pocoo.org/"">Flask</a> module.<br>
+        
+        This is a simple web service for support tickets classification written in Python using <a href=""http://flask.pocoo.org/"">Flask</a> module.<br>
+        Please read the API documentation for more details.
         </body>
         </html>
         """
 
+if(IS_DEBUG):
+	@app.route('/endava/api/v1.0/status', methods=['GET'])
+	def status():
+	    return jsonify({'status': "OK"})
 
 @app.route('/endava/api/v1.0/predictall', methods=['POST'])
 def predictall():
