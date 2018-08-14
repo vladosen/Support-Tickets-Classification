@@ -109,7 +109,6 @@ if __name__ == '__main__':
     elif classifier == "LGB":
         txt = "Training LGB classifier"
         [objective,numClass] = ['multiclass',numClass] if (numClass > 2) else ['binary',1]
-        print("Objective: " + str(objective) + "Num class: " + str(num_class))
         clf = LGBMClassifier(
                boosting_type='gbdt',
                objective=objective,
