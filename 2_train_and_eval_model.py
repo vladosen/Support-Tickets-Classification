@@ -37,12 +37,9 @@ column_to_predict = "ticket_type"
 # urgency
 # sub_category1
 # sub_category2
-
-is_binary_predictor = False
-if(column_to_predict == "ticket_type"):
-    is_binary_predictor = True  
+ 
 classifier = "LGB"  # Supported algorithms # "SVM" # "NB" # "LGB"
-use_grid_search = True  # grid search is used to find hyperparameters. Searching for hyperparameters is time consuming
+use_grid_search = False  # grid search is used to find hyperparameters. Searching for hyperparameters is time consuming
 remove_stop_words = True  # removes stop words from processed text
 stop_words_lang = 'english'  # used with 'remove_stop_words' and defines language of stop words collection
 use_stemming = False  # word stemming using nltk
@@ -70,6 +67,7 @@ if __name__ == '__main__':
     bytag = dfTickets.groupby(column_to_predict).aggregate(np.count_nonzero)
     tags = bytag[bytag.body > min_data_per_class].index
     dfTickets = dfTickets[dfTickets[column_to_predict].isin(tags)]
+    numClass = len(np.unique(dfTickets[column_to_predict]))
     print(
         "Shape of dataset after removing classes with less then "
         + str(min_data_per_class) + " rows: "
@@ -78,7 +76,7 @@ if __name__ == '__main__':
     print(
         "Number of classes after removing classes with less then "
         + str(min_data_per_class) + " rows: "
-        + str(len(np.unique(dfTickets[column_to_predict])))
+        + str(numClass)
     )
 
     labelData = dfTickets[column_to_predict]
@@ -110,9 +108,12 @@ if __name__ == '__main__':
             )
     elif classifier == "LGB":
         txt = "Training LGB classifier"
+        [objective,numClass] = ['multiclass',numClass] if (numClass > 2) else ['binary',1]
+        print("Objective: " + str(objective) + "Num class: " + str(num_class))
         clf = LGBMClassifier(
                boosting_type='gbdt',
-               objective='multiclass',
+               objective=objective,
+               num_class=numClass,
                learning_rate=0.01,
                colsample_bytree=0.9,
                subsample=0.8,
@@ -184,21 +185,21 @@ if __name__ == '__main__':
     # Score and evaluate model on test data using model without hyperparameter tuning
     predicted = text_clf.predict(test_data)
     prediction_acc = np.mean(predicted == test_labels)
-    prediction_auc = roc_auc_score(pd.to_numeric(predicted), pd.to_numeric(test_labels))
+    if(numClass==1): prediction_auc = roc_auc_score(pd.to_numeric(predicted), pd.to_numeric(test_labels))
     print("Confusion matrix without GridSearch:")
     print(metrics.confusion_matrix(test_labels, predicted))
     print("Mean without GridSearch: " + str(prediction_acc))
-    print("ROC AUC without GridSearch: " + str(prediction_auc))
+    if(numClass==1): print("ROC AUC without GridSearch: " + str(prediction_auc))
 
     # Score and evaluate model on test data using model WITH hyperparameter tuning
     if use_grid_search:
         predicted = gs_clf.predict(test_data)
         prediction_acc = np.mean(predicted == test_labels)
-        prediction_auc = roc_auc_score(pd.to_numeric(predicted), pd.to_numeric(test_labels))
+        if(numClass==1): prediction_auc = roc_auc_score(pd.to_numeric(predicted), pd.to_numeric(test_labels))
         print("Confusion matrix with GridSearch:")
         print(metrics.confusion_matrix(test_labels, predicted))
         print("Mean with GridSearch: " + str(prediction_acc))
-        print("ROC AUC with GridSearch: " + str(prediction_auc))
+        if(numClass==1): print("ROC AUC with GridSearch: " + str(prediction_auc))
 
     
     # Ploting confusion matrix with 'seaborn' module
@@ -223,6 +224,7 @@ if __name__ == '__main__':
     # Printing classification report
     # Use below line only with Jupyter Notebook
     from sklearn.metrics import classification_report
+    print("\nClassification report:\n");
     print(classification_report(test_labels, predicted,
                                 target_names=np.unique(test_labels)))
 
