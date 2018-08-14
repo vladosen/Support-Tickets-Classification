@@ -10,3 +10,4 @@ azure_ml_api_sdk==0.1.0a11
 nltk==3.2.5
 azureml==0.2.7
 scikit_learn==0.19.1
+lightgbm=2.1.2
